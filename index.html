@@ -422,8 +422,8 @@
       statusDiv.className = `mt-6 p-4 rounded-lg border ${colors[type]}`;
       statusDiv.innerHTML = `
         <div class="flex items-start gap-3">
-          <span class="text-xl">${icons[type]}</span>
-          <p class="text-sm whitespace-pre-line">${msg}</p>
+          <span class="text-xl flex-shrink-0">${icons[type]}</span>
+          <p class="text-sm whitespace-pre-line break-words overflow-wrap-anywhere min-w-0 flex-1">${msg}</p>
         </div>
       `;
     }
