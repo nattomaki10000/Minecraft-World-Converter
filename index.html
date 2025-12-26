@@ -28,7 +28,7 @@
   <div class="max-w-4xl mx-auto">
     <!-- Header -->
     <div class="text-center mb-8 pt-8">
-      <h1 class="text-4xl font-bold text-white mb-2">Minecraft World Converter</h1>
+      <h1 class="text-4xl font-bold text-white mb-2">Minecraft World Converte</h1>
       <p class="text-green-100">バージョン・エディション変換 + ブロック置換機能</p>
     </div>
 
@@ -102,6 +102,16 @@
       <!-- バージョン選択 -->
       <div id="version-section" class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
         <h3 class="font-semibold text-gray-800 mb-3">バージョン変換設定</h3>
+        
+        <div id="version-edition-select" class="mb-4">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">エディション</label>
+          <select id="version-only-edition" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" onchange="updateVersions()">
+            <option value="java">☕ Java Edition</option>
+            <option value="bedrock">🪨 Bedrock Edition</option>
+            <option value="education">📚 Education Edition</option>
+          </select>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2">現在のバージョン</label>
@@ -267,19 +277,41 @@
         (mode === 'edition' || mode === 'both') ? 'block' : 'none';
       document.getElementById('version-section').style.display = 
         (mode === 'version' || mode === 'both') ? 'block' : 'none';
+      
+      // バージョン変換モード専用のエディション選択を表示/非表示
+      const versionEditionSelect = document.getElementById('version-edition-select');
+      if (versionEditionSelect) {
+        versionEditionSelect.style.display = (mode === 'version') ? 'block' : 'none';
+      }
+      
+      updateVersions();
     }
 
     function updateVersions() {
       const sourceEdition = document.getElementById('source-edition').value;
       const targetEdition = document.getElementById('target-edition').value;
+      const versionOnlyEdition = document.getElementById('version-only-edition').value;
       
       const sourceSelect = document.getElementById('source-version');
       const targetSelect = document.getElementById('target-version');
       
-      const edition = state.conversionMode === 'both' ? sourceEdition : 'java';
-      const targetEd = state.conversionMode === 'both' ? targetEdition : 'java';
+      let sourceEd, targetEd;
       
-      sourceSelect.innerHTML = versions[edition].map(v => 
+      if (state.conversionMode === 'version') {
+        // バージョン変換モード：同じエディション
+        sourceEd = versionOnlyEdition;
+        targetEd = versionOnlyEdition;
+      } else if (state.conversionMode === 'both') {
+        // 両方の変換モード：それぞれのエディション
+        sourceEd = sourceEdition;
+        targetEd = targetEdition;
+      } else {
+        // エディション変換モード：デフォルトでJava
+        sourceEd = sourceEdition;
+        targetEd = targetEdition;
+      }
+      
+      sourceSelect.innerHTML = versions[sourceEd].map(v => 
         `<option value="${v.value}">${v.label}</option>`
       ).join('');
       
@@ -292,14 +324,25 @@
     }
 
     function showVersionChanges(type) {
-      const edition = type === 'source' 
-        ? document.getElementById('source-edition').value 
-        : document.getElementById('target-edition').value;
+      let edition;
+      
+      if (state.conversionMode === 'version') {
+        edition = document.getElementById('version-only-edition').value;
+      } else if (state.conversionMode === 'both') {
+        edition = type === 'source' 
+          ? document.getElementById('source-edition').value 
+          : document.getElementById('target-edition').value;
+      } else {
+        // エディション変換モード
+        edition = type === 'source'
+          ? document.getElementById('source-edition').value
+          : document.getElementById('target-edition').value;
+      }
+      
       const versionValue = document.getElementById(`${type}-version`).value;
       const changesDiv = document.getElementById(`${type}-changes`);
       
-      const ed = state.conversionMode === 'both' ? edition : 'java';
-      const versionInfo = versions[ed].find(v => v.value === versionValue);
+      const versionInfo = versions[edition].find(v => v.value === versionValue);
       
       if (versionInfo && versionInfo.changes.length > 0) {
         changesDiv.innerHTML = `<p class="font-semibold">主な追加要素:</p><p>${versionInfo.changes.join(', ')}</p>`;
@@ -405,8 +448,12 @@
 
       const sourceVersion = document.getElementById('source-version').value;
       const targetVersion = document.getElementById('target-version').value;
-      const sourceEdition = document.getElementById('source-edition').value;
-      const targetEdition = document.getElementById('target-edition').value;
+      const sourceEdition = state.conversionMode === 'version' 
+        ? document.getElementById('version-only-edition').value
+        : document.getElementById('source-edition').value;
+      const targetEdition = state.conversionMode === 'version' 
+        ? document.getElementById('version-only-edition').value
+        : document.getElementById('target-edition').value;
 
       if (state.conversionMode === 'version' && sourceVersion === targetVersion) {
         showStatus('error', '元のバージョンと変換先バージョンが同じです');
