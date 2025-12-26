@@ -1,690 +1,519 @@
-import React, { useState } from 'react';
-import { Upload, Download, AlertCircle, CheckCircle, Loader2, Info, FileArchive, RefreshCw, ArrowRight, Plus, X } from 'lucide-react';
-
-export default function MinecraftWorldConverter() {
-  const [file, setFile] = useState(null);
-  const [status, setStatus] = useState('idle');
-  const [message, setMessage] = useState('');
-  const [progress, setProgress] = useState(0);
-  const [conversionMode, setConversionMode] = useState('both');
-  const [sourceEdition, setSourceEdition] = useState('java');
-  const [targetEdition, setTargetEdition] = useState('bedrock');
-  const [sourceVersion, setSourceVersion] = useState('1.19.4');
-  const [targetVersion, setTargetVersion] = useState('1.20.1');
-  const [blockReplacements, setBlockReplacements] = useState([]);
-  const [newBlockFrom, setNewBlockFrom] = useState('');
-  const [newBlockTo, setNewBlockTo] = useState('');
-
-  const editionOptions = [
-    { value: 'java', label: '☕ Java Edition', ext: '.zip' },
-    { value: 'bedrock', label: '🪨 Bedrock Edition', ext: '.mcworld' },
-    { value: 'education', label: '📚 Education Edition', ext: '.mcworld' },
-  ];
-
-  // より細かいバージョン分類
-  const javaVersions = [
-    { value: '1.21.5', label: '1.21.5 (最新スナップショット)', changes: [] },
-    { value: '1.21.4', label: '1.21.4 (The Pale Garden)', changes: ['creaking', 'pale_garden', 'eyeblossom', 'resin', 'pale_oak'] },
-    { value: '1.21.3', label: '1.21.3 (バンドル追加)', changes: ['bundle'] },
-    { value: '1.21.2', label: '1.21.2 (Redstone最適化)', changes: [] },
-    { value: '1.21.1', label: '1.21.1 (バグ修正)', changes: [] },
-    { value: '1.21.0', label: '1.21 (Tricky Trials)', changes: ['trial_spawner', 'vault', 'breeze', 'copper_bulb', 'crafter'] },
-    { value: '1.20.6', label: '1.20.6 (Armadillo)', changes: ['armadillo', 'wolf_armor'] },
-    { value: '1.20.5', label: '1.20.5 (データパック更新)', changes: [] },
-    { value: '1.20.4', label: '1.20.4 (バグ修正)', changes: [] },
-    { value: '1.20.3', label: '1.20.3 (実験的機能)', changes: [] },
-    { value: '1.20.2', label: '1.20.2 (バグ修正)', changes: [] },
-    { value: '1.20.1', label: '1.20.1 (バグ修正)', changes: [] },
-    { value: '1.20.0', label: '1.20 (Trails & Tales)', changes: ['sniffer', 'cherry_blossom', 'bamboo_blocks', 'hanging_sign', 'chiseled_bookshelf', 'camel'] },
-    { value: '1.19.4', label: '1.19.4 (クリエイティブインベントリ変更)', changes: [] },
-    { value: '1.19.3', label: '1.19.3 (竹ブロック追加)', changes: ['bamboo_planks', 'bamboo_mosaic'] },
-    { value: '1.19.2', label: '1.19.2 (バグ修正)', changes: [] },
-    { value: '1.19.1', label: '1.19.1 (チャット報告)', changes: [] },
-    { value: '1.19.0', label: '1.19 (The Wild Update)', changes: ['warden', 'sculk', 'mangrove', 'frog', 'allay', 'mud'] },
-    { value: '1.18.2', label: '1.18.2 (バグ修正)', changes: [] },
-    { value: '1.18.1', label: '1.18.1 (バグ修正)', changes: [] },
-    { value: '1.18.0', label: '1.18 (Caves & Cliffs II)', changes: ['deepslate', 'dripstone', 'world_height_extended', 'new_cave_generation'] },
-    { value: '1.17.1', label: '1.17.1 (バグ修正)', changes: [] },
-    { value: '1.17.0', label: '1.17 (Caves & Cliffs I)', changes: ['copper', 'amethyst', 'glow_squid', 'axolotl', 'goat', 'powder_snow'] },
-    { value: '1.16.5', label: '1.16.5 (バグ修正)', changes: [] },
-    { value: '1.16.4', label: '1.16.4 (Social Interactions)', changes: [] },
-    { value: '1.16.3', label: '1.16.3 (バグ修正)', changes: [] },
-    { value: '1.16.2', label: '1.16.2 (Piglin変更)', changes: [] },
-    { value: '1.16.1', label: '1.16.1 (バグ修正)', changes: [] },
-    { value: '1.16.0', label: '1.16 (Nether Update)', changes: ['netherite', 'bastion', 'crimson_forest', 'warped_forest', 'piglin', 'hoglin', 'strider'] },
-    { value: '1.15.2', label: '1.15.2 (バグ修正)', changes: [] },
-    { value: '1.15.1', label: '1.15.1 (バグ修正)', changes: [] },
-    { value: '1.15.0', label: '1.15 (Buzzy Bees)', changes: ['bee', 'honey_block', 'beehive'] },
-    { value: '1.14.4', label: '1.14.4 (バグ修正)', changes: [] },
-    { value: '1.14.0', label: '1.14 (Village & Pillage)', changes: ['pillager', 'ravager', 'wandering_trader', 'bamboo', 'lantern', 'new_villager'] },
-    { value: '1.13.2', label: '1.13.2 (バグ修正)', changes: [] },
-    { value: '1.13.0', label: '1.13 (Update Aquatic)', changes: ['dolphin', 'turtle', 'trident', 'coral', 'kelp', 'flattening'] },
-  ];
-
-  const bedrockVersions = [
-    { value: '1.21.130', label: '1.21.130 (Mounts of Mayhem)', changes: ['nautilus', 'spear', 'zombie_nautilus', 'netherite_horse_armor', 'zombie_horseman', 'camel_husk', 'parched'] },
-    { value: '1.21.80', label: '1.21.80 (バグ修正)', changes: [] },
-    { value: '1.21.70', label: '1.21.70 (バグ修正)', changes: [] },
-    { value: '1.21.60', label: '1.21.60 (バグ修正)', changes: [] },
-    { value: '1.21.50', label: '1.21.50 (バグ修正)', changes: [] },
-    { value: '1.21.40', label: '1.21.40 (Bundles)', changes: ['bundle'] },
-    { value: '1.21.30', label: '1.21.30 (バグ修正)', changes: [] },
-    { value: '1.21.20', label: '1.21.20 (バグ修正)', changes: [] },
-    { value: '1.21.0', label: '1.21 (Tricky Trials)', changes: ['trial_spawner', 'vault', 'breeze', 'copper_bulb', 'crafter'] },
-    { value: '1.20.80', label: '1.20.80 (Armadillo)', changes: ['armadillo', 'wolf_armor'] },
-    { value: '1.20.70', label: '1.20.70 (バグ修正)', changes: [] },
-    { value: '1.20.60', label: '1.20.60 (バグ修正)', changes: [] },
-    { value: '1.20.50', label: '1.20.50 (バグ修正)', changes: [] },
-    { value: '1.20.40', label: '1.20.40 (バグ修正)', changes: [] },
-    { value: '1.20.30', label: '1.20.30 (バグ修正)', changes: [] },
-    { value: '1.20.10', label: '1.20.10 (バグ修正)', changes: [] },
-    { value: '1.20.0', label: '1.20 (Trails & Tales)', changes: ['sniffer', 'cherry_blossom', 'bamboo_blocks', 'hanging_sign', 'chiseled_bookshelf', 'camel'] },
-    { value: '1.19.80', label: '1.19.80 (竹ブロック)', changes: ['bamboo_planks', 'bamboo_mosaic'] },
-    { value: '1.19.70', label: '1.19.70 (バグ修正)', changes: [] },
-    { value: '1.19.60', label: '1.19.60 (バグ修正)', changes: [] },
-    { value: '1.19.50', label: '1.19.50 (バグ修正)', changes: [] },
-    { value: '1.19.40', label: '1.19.40 (バグ修正)', changes: [] },
-    { value: '1.19.30', label: '1.19.30 (バグ修正)', changes: [] },
-    { value: '1.19.20', label: '1.19.20 (バグ修正)', changes: [] },
-    { value: '1.19.10', label: '1.19.10 (バグ修正)', changes: [] },
-    { value: '1.19.0', label: '1.19 (The Wild Update)', changes: ['warden', 'sculk', 'mangrove', 'frog', 'allay', 'mud'] },
-    { value: '1.18.30', label: '1.18.30 (Frog)', changes: ['frog'] },
-    { value: '1.18.10', label: '1.18.10 (バグ修正)', changes: [] },
-    { value: '1.18.0', label: '1.18 (Caves & Cliffs II)', changes: ['deepslate', 'dripstone', 'world_height_extended', 'new_cave_generation'] },
-    { value: '1.17.40', label: '1.17.40 (バグ修正)', changes: [] },
-    { value: '1.17.30', label: '1.17.30 (バグ修正)', changes: [] },
-    { value: '1.17.10', label: '1.17.10 (バグ修正)', changes: [] },
-    { value: '1.17.0', label: '1.17 (Caves & Cliffs I)', changes: ['copper', 'amethyst', 'glow_squid', 'axolotl', 'goat', 'powder_snow'] },
-    { value: '1.16.220', label: '1.16.220 (バグ修正)', changes: [] },
-    { value: '1.16.200', label: '1.16.200 (バグ修正)', changes: [] },
-    { value: '1.16.100', label: '1.16.100 (バグ修正)', changes: [] },
-    { value: '1.16.0', label: '1.16 (Nether Update)', changes: ['netherite', 'bastion', 'crimson_forest', 'warped_forest', 'piglin', 'hoglin', 'strider'] },
-  ];
-
-  const educationVersions = [
-    { value: '1.21.130', label: '1.21.130 (Education)', changes: [] },
-    { value: '1.21.0', label: '1.21 (Education)', changes: [] },
-    { value: '1.20.0', label: '1.20 (Education)', changes: [] },
-    { value: '1.19.0', label: '1.19 (Education)', changes: [] },
-    { value: '1.18.0', label: '1.18 (Education)', changes: [] },
-  ];
-
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setStatus('idle');
-      setMessage('');
-      setProgress(0);
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minecraft World Converter Pro</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
-  };
-
-  const addBlockReplacement = () => {
-    if (newBlockFrom && newBlockTo) {
-      setBlockReplacements([...blockReplacements, { from: newBlockFrom, to: newBlockTo }]);
-      setNewBlockFrom('');
-      setNewBlockTo('');
+    .spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #16a34a;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
     }
-  };
-
-  const removeBlockReplacement = (index) => {
-    setBlockReplacements(blockReplacements.filter((_, i) => i !== index));
-  };
-
-  const readFileAsArrayBuffer = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    });
-  };
-
-  const loadJSZip = () => {
-    return new Promise((resolve, reject) => {
-      if (window.JSZip) {
-        resolve(window.JSZip);
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-      script.onload = () => resolve(window.JSZip);
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-  };
-
-  const applyBlockReplacements = (content, replacements) => {
-    // ブロック置換処理（簡易版）
-    // 実際にはNBTデータを解析して置換が必要
-    let modified = content;
-    for (const replacement of replacements) {
-      // 文字列検索と置換（実際のNBT処理が必要）
-      const fromBytes = new TextEncoder().encode(replacement.from);
-      const toBytes = new TextEncoder().encode(replacement.to);
-      // 簡易的な実装
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
-    return modified;
-  };
+  </style>
+</head>
+<body class="bg-gradient-to-br from-green-900 via-green-700 to-emerald-600 min-h-screen p-4">
+  <div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="text-center mb-8 pt-8">
+      <h1 class="text-4xl font-bold text-white mb-2">🎮 Minecraft World Converter Pro</h1>
+      <p class="text-green-100">バージョン・エディション変換 + ブロック置換機能</p>
+    </div>
 
-  const convertWorld = async () => {
-    if (!file) {
-      setStatus('error');
-      setMessage('ファイルを選択してください');
-      return;
-    }
-
-    if (conversionMode === 'version' && sourceVersion === targetVersion) {
-      setStatus('error');
-      setMessage('元のバージョンと変換先バージョンが同じです');
-      return;
-    }
-
-    if (conversionMode === 'edition' && sourceEdition === targetEdition) {
-      setStatus('error');
-      setMessage('元のエディションと変換先エディションが同じです');
-      return;
-    }
-
-    try {
-      setStatus('processing');
-      setMessage('ワールドデータを読み込んでいます...');
-      setProgress(10);
-
-      const arrayBuffer = await readFileAsArrayBuffer(file);
-      setProgress(20);
-
-      setMessage('ファイル構造を解析しています...');
-      
-      const JSZip = await loadJSZip();
-      const zip = await JSZip.loadAsync(arrayBuffer);
-      setProgress(40);
-
-      const newZip = new JSZip();
-      const files = Object.keys(zip.files);
-      let processedFiles = 0;
-
-      if (conversionMode === 'version' || conversionMode === 'both') {
-        setMessage(`バージョン変換中: ${sourceVersion} → ${targetVersion}`);
-      }
-      if (conversionMode === 'edition' || conversionMode === 'both') {
-        setMessage(`エディション変換中: ${sourceEdition} → ${targetEdition}`);
-      }
-      setProgress(50);
-
-      for (const filename of files) {
-        const fileObj = zip.files[filename];
-        
-        if (fileObj.dir) {
-          newZip.folder(filename);
-          continue;
-        }
-
-        let content = await fileObj.async('uint8array');
-        
-        // level.datの処理
-        if (filename === 'level.dat' || filename.includes('level.dat')) {
-          setMessage(`${filename}を変換中...`);
-        }
-        
-        // ブロック置換の適用
-        if (blockReplacements.length > 0 && (filename.includes('region/') || filename.includes('db/'))) {
-          setMessage(`ブロック置換を適用中: ${filename}`);
-          content = applyBlockReplacements(content, blockReplacements);
-        }
-
-        // エディション変換
-        if (conversionMode === 'edition' || conversionMode === 'both') {
-          if (sourceEdition === 'education' && targetEdition === 'bedrock') {
-            // 教育版 → 統合版（教育版固有の要素を削除）
-            setMessage('教育版の要素を削除中...');
-          }
-        }
-
-        newZip.file(filename, content);
-        processedFiles++;
-        setProgress(50 + (processedFiles / files.length) * 40);
-      }
-
-      setMessage('変換済みワールドを生成中...');
-      setProgress(95);
-
-      const convertedBlob = await newZip.generateAsync({
-        type: 'blob',
-        compression: 'DEFLATE',
-        compressionOptions: { level: 6 }
-      });
-
-      setProgress(100);
-      setStatus('success');
-      setMessage('変換が完了しました！ダウンロードを開始します...');
-
-      // ファイル名の生成
-      let newFilename = file.name.replace(/\.(zip|mcworld)$/, '');
-      if (conversionMode === 'version' || conversionMode === 'both') {
-        newFilename += `_v${targetVersion}`;
-      }
-      if (conversionMode === 'edition' || conversionMode === 'both') {
-        newFilename += `_${targetEdition}`;
-      }
-      const targetExt = editionOptions.find(e => e.value === targetEdition)?.ext || '.zip';
-      newFilename += targetExt;
-
-      // ダウンロード
-      const url = URL.createObjectURL(convertedBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = newFilename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      setTimeout(() => {
-        let successMsg = '✅ 変換完了！\n\n';
-        if (conversionMode === 'version') {
-          successMsg += `バージョン: ${sourceVersion} → ${targetVersion}`;
-        } else if (conversionMode === 'edition') {
-          successMsg += `エディション: ${sourceEdition} → ${targetEdition}`;
-        } else {
-          successMsg += `エディション: ${sourceEdition} → ${targetEdition}\n`;
-          successMsg += `バージョン: ${sourceVersion} → ${targetVersion}`;
-        }
-        if (blockReplacements.length > 0) {
-          successMsg += `\n\nブロック置換: ${blockReplacements.length}個適用`;
-        }
-        successMsg += '\n\n⚠️ 変換後のワールドをMinecraftで開く前に、バックアップを確認してください。';
-        setMessage(successMsg);
-      }, 1000);
-
-    } catch (error) {
-      setStatus('error');
-      setMessage(`エラーが発生しました: ${error.message}\n\nファイル構造を確認してください。`);
-      console.error('Conversion error:', error);
-    }
-  };
-
-  const getAvailableVersions = (edition) => {
-    if (edition === 'java') return javaVersions;
-    if (edition === 'education') return educationVersions;
-    return bedrockVersions;
-  };
-
-  const isConversionValid = () => {
-    if (!file) return false;
-    
-    if (conversionMode === 'version') {
-      return sourceVersion !== targetVersion;
-    } else if (conversionMode === 'edition') {
-      return sourceEdition !== targetEdition;
-    } else {
-      return sourceVersion !== targetVersion || sourceEdition !== targetEdition;
-    }
-  };
-
-  const getVersionChanges = (version, edition) => {
-    const versions = getAvailableVersions(edition);
-    const versionInfo = versions.find(v => v.value === version);
-    return versionInfo?.changes || [];
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-700 to-emerald-600 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8 pt-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            🎮 Minecraft World Converter Pro
-          </h1>
-          <p className="text-green-100">
-            バージョン・エディション変換 + ブロック置換機能
-          </p>
-        </div>
-
-        <div className="bg-blue-500/20 border border-blue-300 rounded-lg p-4 mb-6 backdrop-blur-sm">
-          <div className="flex items-start gap-3">
-            <Info className="text-blue-200 flex-shrink-0 mt-1" size={20} />
-            <div className="text-blue-100 text-sm">
-              <p className="font-semibold mb-1">新機能</p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>教育版から統合版への変換に対応</li>
-                <li>カスタムブロック置換機能を追加</li>
-                <li>細かいバージョン選択が可能（バグ修正版まで対応）</li>
-                <li>各バージョンの主要な変更点を表示</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8">
-          {/* 変換モード選択 */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
-              変換モード
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <button
-                onClick={() => setConversionMode('version')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  conversionMode === 'version'
-                    ? 'border-green-500 bg-green-50 shadow-md'
-                    : 'border-gray-200 hover:border-green-300'
-                }`}
-              >
-                <RefreshCw className="mx-auto mb-2 text-green-600" size={24} />
-                <div className="font-semibold text-gray-800">バージョン変換</div>
-                <div className="text-xs text-gray-600 mt-1">同一エディション内</div>
-              </button>
-              <button
-                onClick={() => setConversionMode('edition')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  conversionMode === 'edition'
-                    ? 'border-green-500 bg-green-50 shadow-md'
-                    : 'border-gray-200 hover:border-green-300'
-                }`}
-              >
-                <ArrowRight className="mx-auto mb-2 text-blue-600" size={24} />
-                <div className="font-semibold text-gray-800">エディション変換</div>
-                <div className="text-xs text-gray-600 mt-1">Java/Bedrock/Education</div>
-              </button>
-              <button
-                onClick={() => setConversionMode('both')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  conversionMode === 'both'
-                    ? 'border-green-500 bg-green-50 shadow-md'
-                    : 'border-gray-200 hover:border-green-300'
-                }`}
-              >
-                <FileArchive className="mx-auto mb-2 text-purple-600" size={24} />
-                <div className="font-semibold text-gray-800">両方の変換</div>
-                <div className="text-xs text-gray-600 mt-1">エディション+バージョン</div>
-              </button>
-            </div>
-          </div>
-
-          {/* エディション選択 */}
-          {(conversionMode === 'edition' || conversionMode === 'both') && (
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 className="font-semibold text-gray-800 mb-3">エディション変換設定</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    元のエディション
-                  </label>
-                  <select
-                    value={sourceEdition}
-                    onChange={(e) => setSourceEdition(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {editionOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    変換先エディション
-                  </label>
-                  <select
-                    value={targetEdition}
-                    onChange={(e) => setTargetEdition(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {editionOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* バージョン選択 */}
-          {(conversionMode === 'version' || conversionMode === 'both') && (
-            <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-              <h3 className="font-semibold text-gray-800 mb-3">バージョン変換設定</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    現在のバージョン
-                  </label>
-                  <select
-                    value={sourceVersion}
-                    onChange={(e) => setSourceVersion(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-                  >
-                    {getAvailableVersions(conversionMode === 'both' ? sourceEdition : 'java').map(v => (
-                      <option key={v.value} value={v.value}>{v.label}</option>
-                    ))}
-                  </select>
-                  {getVersionChanges(sourceVersion, conversionMode === 'both' ? sourceEdition : 'java').length > 0 && (
-                    <div className="mt-2 text-xs text-gray-600">
-                      <p className="font-semibold">主な追加要素:</p>
-                      <p>{getVersionChanges(sourceVersion, conversionMode === 'both' ? sourceEdition : 'java').join(', ')}</p>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    変換先バージョン
-                  </label>
-                  <select
-                    value={targetVersion}
-                    onChange={(e) => setTargetVersion(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-                  >
-                    {getAvailableVersions(conversionMode === 'both' ? targetEdition : 'java').map(v => (
-                      <option key={v.value} value={v.value}>{v.label}</option>
-                    ))}
-                  </select>
-                  {getVersionChanges(targetVersion, conversionMode === 'both' ? targetEdition : 'java').length > 0 && (
-                    <div className="mt-2 text-xs text-gray-600">
-                      <p className="font-semibold">主な追加要素:</p>
-                      <p>{getVersionChanges(targetVersion, conversionMode === 'both' ? targetEdition : 'java').join(', ')}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ブロック置換設定 */}
-          <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
-            <h3 className="font-semibold text-gray-800 mb-3">カスタムブロック置換（オプション）</h3>
-            <p className="text-sm text-gray-600 mb-3">
-              特定のブロックを別のブロックに置き換えます
-            </p>
-            
-            <div className="space-y-2 mb-3">
-              <input
-                type="text"
-                value={newBlockFrom}
-                onChange={(e) => setNewBlockFrom(e.target.value)}
-                placeholder="置換前 (例: minecraft:grass)"
-                className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-              />
-              <div className="flex items-center justify-center text-gray-500 text-sm">↓</div>
-              <input
-                type="text"
-                value={newBlockTo}
-                onChange={(e) => setNewBlockTo(e.target.value)}
-                placeholder="置換後 (例: minecraft:short_grass)"
-                className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-              />
-              <button
-                onClick={addBlockReplacement}
-                disabled={!newBlockFrom || !newBlockTo}
-                className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <Plus size={16} />
-                置換ルールを追加
-              </button>
-            </div>
-
-            {blockReplacements.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-gray-700">設定済みの置換 ({blockReplacements.length}個):</p>
-                {blockReplacements.map((replacement, index) => (
-                  <div key={index} className="bg-white p-3 rounded-lg border border-purple-200">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0 text-sm">
-                        <div className="font-mono text-red-600 break-all">{replacement.from}</div>
-                        <div className="text-gray-500 text-xs my-1">↓</div>
-                        <div className="font-mono text-green-600 break-all">{replacement.to}</div>
-                      </div>
-                      <button
-                        onClick={() => removeBlockReplacement(index)}
-                        className="p-1 text-red-500 hover:bg-red-50 rounded flex-shrink-0"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ファイルアップロード */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              ワールドファイル
-            </label>
-            <div className="relative">
-              <input
-                type="file"
-                accept=".zip,.mcworld"
-                onChange={handleFileChange}
-                className="hidden"
-                id="file-upload"
-              />
-              <label
-                htmlFor="file-upload"
-                className="flex items-center justify-center w-full p-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all"
-              >
-                <div className="text-center">
-                  <Upload className="mx-auto mb-2 text-gray-400" size={32} />
-                  {file ? (
-                    <>
-                      <p className="text-sm font-medium text-gray-800">{file.name}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm text-gray-600">
-                        クリックしてファイルを選択
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        ZIP形式またはMCWORLD形式のワールドデータ
-                      </p>
-                    </>
-                  )}
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* 変換ボタン */}
-          <button
-            onClick={convertWorld}
-            disabled={!isConversionValid() || status === 'processing'}
-            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-          >
-            {status === 'processing' ? (
-              <>
-                <Loader2 className="animate-spin" size={20} />
-                変換中... {progress}%
-              </>
-            ) : (
-              <>
-                <Download size={20} />
-                変換を開始
-              </>
-            )}
-          </button>
-
-          {status === 'processing' && (
-            <div className="mt-4">
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
-
-          {message && (
-            <div
-              className={`mt-6 p-4 rounded-lg ${
-                status === 'error'
-                  ? 'bg-red-50 border border-red-200'
-                  : status === 'success'
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-blue-50 border border-blue-200'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                {status === 'error' && (
-                  <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
-                )}
-                {status === 'success' && (
-                  <CheckCircle className="text-green-500 flex-shrink-0 mt-0.5" size={20} />
-                )}
-                {status === 'processing' && (
-                  <Loader2 className="text-blue-500 flex-shrink-0 mt-0.5 animate-spin" size={20} />
-                )}
-                <p
-                  className={`text-sm whitespace-pre-line ${
-                    status === 'error'
-                      ? 'text-red-800'
-                      : status === 'success'
-                      ? 'text-green-800'
-                      : 'text-blue-800'
-                  }`}
-                >
-                  {message}
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="font-semibold text-gray-800 mb-4">対応機能</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                細かいバージョン選択
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                教育版→統合版変換
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                カスタムブロック置換
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                バージョン情報表示
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                .mcworld形式対応
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                NBT完全処理（開発中）
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="text-center mt-8 text-white/80 text-sm">
-          <p>⚠️ このツールはベータ版です。重要なワールドは必ずバックアップしてください</p>
+    <!-- Info Box -->
+    <div class="bg-blue-500/20 border border-blue-300 rounded-lg p-4 mb-6 backdrop-blur-sm">
+      <div class="flex items-start gap-3">
+        <svg class="text-blue-200 flex-shrink-0 mt-1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        <div class="text-blue-100 text-sm">
+          <p class="font-semibold mb-1">新機能</p>
+          <ul class="list-disc list-inside space-y-1">
+            <li>教育版から統合版への変換に対応</li>
+            <li>カスタムブロック置換機能を追加</li>
+            <li>細かいバージョン選択が可能（バグ修正版まで対応）</li>
+            <li>各バージョンの主要な変更点を表示</li>
+          </ul>
         </div>
       </div>
     </div>
-  );
-}
+
+    <!-- Main Card -->
+    <div class="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8">
+      <!-- 変換モード選択 -->
+      <div class="mb-6">
+        <label class="block text-sm font-semibold text-gray-700 mb-3">変換モード</label>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <button onclick="setConversionMode('version')" id="mode-version" class="p-4 rounded-lg border-2 border-gray-200 hover:border-green-300 transition-all">
+            <div class="text-2xl mb-2">🔄</div>
+            <div class="font-semibold text-gray-800">バージョン変換</div>
+            <div class="text-xs text-gray-600 mt-1">同一エディション内</div>
+          </button>
+          <button onclick="setConversionMode('edition')" id="mode-edition" class="p-4 rounded-lg border-2 border-gray-200 hover:border-green-300 transition-all">
+            <div class="text-2xl mb-2">➡️</div>
+            <div class="font-semibold text-gray-800">エディション変換</div>
+            <div class="text-xs text-gray-600 mt-1">Java/Bedrock/Education</div>
+          </button>
+          <button onclick="setConversionMode('both')" id="mode-both" class="p-4 rounded-lg border-2 border-green-500 bg-green-50 shadow-md transition-all">
+            <div class="text-2xl mb-2">📦</div>
+            <div class="font-semibold text-gray-800">両方の変換</div>
+            <div class="text-xs text-gray-600 mt-1">エディション+バージョン</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- エディション選択 -->
+      <div id="edition-section" class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h3 class="font-semibold text-gray-800 mb-3">エディション変換設定</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">元のエディション</label>
+            <select id="source-edition" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" onchange="updateVersions()">
+              <option value="java">☕ Java Edition</option>
+              <option value="bedrock">🪨 Bedrock Edition</option>
+              <option value="education">📚 Education Edition</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">変換先エディション</label>
+            <select id="target-edition" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" onchange="updateVersions()">
+              <option value="java">☕ Java Edition</option>
+              <option value="bedrock" selected>🪨 Bedrock Edition</option>
+              <option value="education">📚 Education Edition</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- バージョン選択 -->
+      <div id="version-section" class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+        <h3 class="font-semibold text-gray-800 mb-3">バージョン変換設定</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">現在のバージョン</label>
+            <select id="source-version" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm" onchange="showVersionChanges('source')"></select>
+            <div id="source-changes" class="mt-2 text-xs text-gray-600"></div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-2">変換先バージョン</label>
+            <select id="target-version" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm" onchange="showVersionChanges('target')"></select>
+            <div id="target-changes" class="mt-2 text-xs text-gray-600"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ブロック置換 -->
+      <div class="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+        <h3 class="font-semibold text-gray-800 mb-3">カスタムブロック置換（オプション）</h3>
+        <p class="text-sm text-gray-600 mb-3">特定のブロックを別のブロックに置き換えます</p>
+        
+        <div class="space-y-2 mb-3">
+          <input type="text" id="block-from" placeholder="置換前 (例: minecraft:grass)" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500">
+          <div class="flex items-center justify-center text-gray-500 text-sm">↓</div>
+          <input type="text" id="block-to" placeholder="置換後 (例: minecraft:short_grass)" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500">
+          <button onclick="addBlockReplacement()" class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2">
+            <span>➕</span> 置換ルールを追加
+          </button>
+        </div>
+
+        <div id="block-replacements" class="space-y-2 hidden">
+          <p class="text-sm font-semibold text-gray-700">設定済みの置換 (<span id="replacement-count">0</span>個):</p>
+          <div id="replacement-list"></div>
+        </div>
+      </div>
+
+      <!-- ファイルアップロード -->
+      <div class="mb-6">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">ワールドファイル</label>
+        <div class="relative">
+          <input type="file" id="file-input" accept=".zip,.mcworld" class="hidden" onchange="handleFileSelect(event)">
+          <label for="file-input" class="flex items-center justify-center w-full p-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all">
+            <div class="text-center">
+              <div class="text-4xl mb-2">📁</div>
+              <p id="file-name" class="text-sm text-gray-600">クリックしてファイルを選択</p>
+              <p class="text-xs text-gray-500 mt-1">ZIP形式またはMCWORLD形式のワールドデータ</p>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- 変換ボタン -->
+      <button onclick="convertWorld()" id="convert-btn" class="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
+        <span>⬇️</span> 変換を開始
+      </button>
+
+      <!-- 進捗バー -->
+      <div id="progress-container" class="mt-4 hidden">
+        <div class="w-full bg-gray-200 rounded-full h-2">
+          <div id="progress-bar" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- ステータスメッセージ -->
+      <div id="status-message" class="mt-6 hidden"></div>
+
+      <!-- 機能説明 -->
+      <div class="mt-8 pt-8 border-t border-gray-200">
+        <h3 class="font-semibold text-gray-800 mb-4">対応機能</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
+          <div class="flex items-center gap-2"><div class="w-2 h-2 bg-green-500 rounded-full"></div>細かいバージョン選択</div>
+          <div class="flex items-center gap-2"><div class="w-2 h-2 bg-green-500 rounded-full"></div>教育版→統合版変換</div>
+          <div class="flex items-center gap-2"><div class="w-2 h-2 bg-green-500 rounded-full"></div>カスタムブロック置換</div>
+          <div class="flex items-center gap-2"><div class="w-2 h-2 bg-green-500 rounded-full"></div>バージョン情報表示</div>
+          <div class="flex items-center gap-2"><div class="w-2 h-2 bg-green-500 rounded-full"></div>.mcworld形式対応</div>
+          <div class="flex items-center gap-2"><div class="w-2 h-2 bg-yellow-500 rounded-full"></div>NBT完全処理（開発中）</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-8 text-white/80 text-sm">
+      <p>⚠️ このツールはベータ版です。重要なワールドは必ずバックアップしてください</p>
+    </div>
+  </div>
+
+  <script>
+    const versions = {
+      java: [
+        { value: '1.21.5', label: '1.21.5 (最新スナップショット)', changes: [] },
+        { value: '1.21.4', label: '1.21.4 (The Pale Garden)', changes: ['creaking', 'pale_garden', 'eyeblossom', 'resin', 'pale_oak'] },
+        { value: '1.21.3', label: '1.21.3 (バンドル追加)', changes: ['bundle'] },
+        { value: '1.21.2', label: '1.21.2 (Redstone最適化)', changes: [] },
+        { value: '1.21.1', label: '1.21.1 (バグ修正)', changes: [] },
+        { value: '1.21.0', label: '1.21 (Tricky Trials)', changes: ['trial_spawner', 'vault', 'breeze', 'copper_bulb', 'crafter'] },
+        { value: '1.20.6', label: '1.20.6 (Armadillo)', changes: ['armadillo', 'wolf_armor'] },
+        { value: '1.20.5', label: '1.20.5 (データパック更新)', changes: [] },
+        { value: '1.20.4', label: '1.20.4 (バグ修正)', changes: [] },
+        { value: '1.20.3', label: '1.20.3 (実験的機能)', changes: [] },
+        { value: '1.20.2', label: '1.20.2 (バグ修正)', changes: [] },
+        { value: '1.20.1', label: '1.20.1 (バグ修正)', changes: [] },
+        { value: '1.20.0', label: '1.20 (Trails & Tales)', changes: ['sniffer', 'cherry_blossom', 'bamboo_blocks', 'hanging_sign', 'chiseled_bookshelf', 'camel'] },
+        { value: '1.19.4', label: '1.19.4 (クリエイティブインベントリ変更)', changes: [] },
+        { value: '1.19.3', label: '1.19.3 (竹ブロック追加)', changes: ['bamboo_planks', 'bamboo_mosaic'] },
+        { value: '1.19.2', label: '1.19.2 (バグ修正)', changes: [] },
+        { value: '1.19.1', label: '1.19.1 (チャット報告)', changes: [] },
+        { value: '1.19.0', label: '1.19 (The Wild Update)', changes: ['warden', 'sculk', 'mangrove', 'frog', 'allay', 'mud'] },
+        { value: '1.18.2', label: '1.18.2 (バグ修正)', changes: [] },
+        { value: '1.18.1', label: '1.18.1 (バグ修正)', changes: [] },
+        { value: '1.18.0', label: '1.18 (Caves & Cliffs II)', changes: ['deepslate', 'dripstone', 'world_height_extended', 'new_cave_generation'] },
+        { value: '1.17.1', label: '1.17.1 (バグ修正)', changes: [] },
+        { value: '1.17.0', label: '1.17 (Caves & Cliffs I)', changes: ['copper', 'amethyst', 'glow_squid', 'axolotl', 'goat', 'powder_snow'] },
+        { value: '1.16.5', label: '1.16.5 (バグ修正)', changes: [] },
+        { value: '1.16.0', label: '1.16 (Nether Update)', changes: ['netherite', 'bastion', 'crimson_forest', 'warped_forest', 'piglin', 'hoglin', 'strider'] },
+        { value: '1.15.0', label: '1.15 (Buzzy Bees)', changes: ['bee', 'honey_block', 'beehive'] },
+        { value: '1.14.0', label: '1.14 (Village & Pillage)', changes: ['pillager', 'ravager', 'wandering_trader', 'bamboo', 'lantern'] },
+        { value: '1.13.0', label: '1.13 (Update Aquatic)', changes: ['dolphin', 'turtle', 'trident', 'coral', 'kelp', 'flattening'] },
+      ],
+      bedrock: [
+        { value: '1.21.130', label: '1.21.130 (Mounts of Mayhem)', changes: ['nautilus', 'spear', 'zombie_nautilus', 'netherite_horse_armor', 'zombie_horseman', 'camel_husk'] },
+        { value: '1.21.80', label: '1.21.80 (バグ修正)', changes: [] },
+        { value: '1.21.70', label: '1.21.70 (バグ修正)', changes: [] },
+        { value: '1.21.60', label: '1.21.60 (バグ修正)', changes: [] },
+        { value: '1.21.50', label: '1.21.50 (バグ修正)', changes: [] },
+        { value: '1.21.40', label: '1.21.40 (Bundles)', changes: ['bundle'] },
+        { value: '1.21.30', label: '1.21.30 (バグ修正)', changes: [] },
+        { value: '1.21.20', label: '1.21.20 (バグ修正)', changes: [] },
+        { value: '1.21.0', label: '1.21 (Tricky Trials)', changes: ['trial_spawner', 'vault', 'breeze', 'copper_bulb', 'crafter'] },
+        { value: '1.20.80', label: '1.20.80 (Armadillo)', changes: ['armadillo', 'wolf_armor'] },
+        { value: '1.20.0', label: '1.20 (Trails & Tales)', changes: ['sniffer', 'cherry_blossom', 'bamboo_blocks', 'hanging_sign', 'chiseled_bookshelf', 'camel'] },
+        { value: '1.19.80', label: '1.19.80 (竹ブロック)', changes: ['bamboo_planks', 'bamboo_mosaic'] },
+        { value: '1.19.0', label: '1.19 (The Wild Update)', changes: ['warden', 'sculk', 'mangrove', 'frog', 'allay', 'mud'] },
+        { value: '1.18.30', label: '1.18.30 (Frog)', changes: ['frog'] },
+        { value: '1.18.0', label: '1.18 (Caves & Cliffs II)', changes: ['deepslate', 'dripstone', 'world_height_extended'] },
+        { value: '1.17.0', label: '1.17 (Caves & Cliffs I)', changes: ['copper', 'amethyst', 'glow_squid', 'axolotl', 'goat', 'powder_snow'] },
+        { value: '1.16.0', label: '1.16 (Nether Update)', changes: ['netherite', 'bastion', 'crimson_forest', 'warped_forest', 'piglin', 'hoglin', 'strider'] },
+      ],
+      education: [
+        { value: '1.21.130', label: '1.21.130 (Education)', changes: [] },
+        { value: '1.21.0', label: '1.21 (Education)', changes: [] },
+        { value: '1.20.0', label: '1.20 (Education)', changes: [] },
+        { value: '1.19.0', label: '1.19 (Education)', changes: [] },
+        { value: '1.18.0', label: '1.18 (Education)', changes: [] },
+      ]
+    };
+
+    let state = {
+      conversionMode: 'both',
+      file: null,
+      blockReplacements: []
+    };
+
+    function setConversionMode(mode) {
+      state.conversionMode = mode;
+      ['version', 'edition', 'both'].forEach(m => {
+        const btn = document.getElementById(`mode-${m}`);
+        if (m === mode) {
+          btn.className = 'p-4 rounded-lg border-2 border-green-500 bg-green-50 shadow-md transition-all';
+        } else {
+          btn.className = 'p-4 rounded-lg border-2 border-gray-200 hover:border-green-300 transition-all';
+        }
+      });
+      
+      document.getElementById('edition-section').style.display = 
+        (mode === 'edition' || mode === 'both') ? 'block' : 'none';
+      document.getElementById('version-section').style.display = 
+        (mode === 'version' || mode === 'both') ? 'block' : 'none';
+    }
+
+    function updateVersions() {
+      const sourceEdition = document.getElementById('source-edition').value;
+      const targetEdition = document.getElementById('target-edition').value;
+      
+      const sourceSelect = document.getElementById('source-version');
+      const targetSelect = document.getElementById('target-version');
+      
+      const edition = state.conversionMode === 'both' ? sourceEdition : 'java';
+      const targetEd = state.conversionMode === 'both' ? targetEdition : 'java';
+      
+      sourceSelect.innerHTML = versions[edition].map(v => 
+        `<option value="${v.value}">${v.label}</option>`
+      ).join('');
+      
+      targetSelect.innerHTML = versions[targetEd].map(v => 
+        `<option value="${v.value}">${v.label}</option>`
+      ).join('');
+      
+      showVersionChanges('source');
+      showVersionChanges('target');
+    }
+
+    function showVersionChanges(type) {
+      const edition = type === 'source' 
+        ? document.getElementById('source-edition').value 
+        : document.getElementById('target-edition').value;
+      const versionValue = document.getElementById(`${type}-version`).value;
+      const changesDiv = document.getElementById(`${type}-changes`);
+      
+      const ed = state.conversionMode === 'both' ? edition : 'java';
+      const versionInfo = versions[ed].find(v => v.value === versionValue);
+      
+      if (versionInfo && versionInfo.changes.length > 0) {
+        changesDiv.innerHTML = `<p class="font-semibold">主な追加要素:</p><p>${versionInfo.changes.join(', ')}</p>`;
+      } else {
+        changesDiv.innerHTML = '';
+      }
+    }
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        state.file = file;
+        document.getElementById('file-name').innerHTML = 
+          `<span class="text-sm font-medium text-gray-800">${file.name}</span><br>
+           <span class="text-xs text-gray-500 mt-1">${(file.size / 1024 / 1024).toFixed(2)} MB</span>`;
+      }
+    }
+
+    function addBlockReplacement() {
+      const from = document.getElementById('block-from').value.trim();
+      const to = document.getElementById('block-to').value.trim();
+      
+      if (from && to) {
+        state.blockReplacements.push({ from, to });
+        document.getElementById('block-from').value = '';
+        document.getElementById('block-to').value = '';
+        updateReplacementList();
+      }
+    }
+
+    function removeBlockReplacement(index) {
+      state.blockReplacements.splice(index, 1);
+      updateReplacementList();
+    }
+
+    function updateReplacementList() {
+      const container = document.getElementById('block-replacements');
+      const list = document.getElementById('replacement-list');
+      const count = document.getElementById('replacement-count');
+      
+      if (state.blockReplacements.length > 0) {
+        container.classList.remove('hidden');
+        count.textContent = state.blockReplacements.length;
+        list.innerHTML = state.blockReplacements.map((r, i) => `
+          <div class="bg-white p-3 rounded-lg border border-purple-200">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1 min-w-0 text-sm">
+                <div class="font-mono text-red-600 break-all">${r.from}</div>
+                <div class="text-gray-500 text-xs my-1">↓</div>
+                <div class="font-mono text-green-600 break-all">${r.to}</div>
+              </div>
+              <button onclick="removeBlockReplacement(${i})" class="p-1 text-red-500 hover:bg-red-50 rounded flex-shrink-0">✕</button>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        container.classList.add('hidden');
+      }
+    }
+
+    function showStatus(type, msg) {
+      const statusDiv = document.getElementById('status-message');
+      statusDiv.classList.remove('hidden');
+      
+      const colors = {
+        error: 'bg-red-50 border-red-200 text-red-800',
+        success: 'bg-green-50 border-green-200 text-green-800',
+        processing: 'bg-blue-50 border-blue-200 text-blue-800'
+      };
+      
+      const icons = {
+        error: '⚠️',
+        success: '✅',
+        processing: '⏳'
+      };
+      
+      statusDiv.className = `mt-6 p-4 rounded-lg border ${colors[type]}`;
+      statusDiv.innerHTML = `
+        <div class="flex items-start gap-3">
+          <span class="text-xl">${icons[type]}</span>
+          <p class="text-sm whitespace-pre-line">${msg}</p>
+        </div>
+      `;
+    }
+
+    function setProgress(percent) {
+      const bar = document.getElementById('progress-bar');
+      const container = document.getElementById('progress-container');
+      
+      if (percent > 0) {
+        container.classList.remove('hidden');
+        bar.style.width = percent + '%';
+      } else {
+        container.classList.add('hidden');
+      }
+    }
+
+    async function convertWorld() {
+      if (!state.file) {
+        showStatus('error', 'ファイルを選択してください');
+        return;
+      }
+
+      const sourceVersion = document.getElementById('source-version').value;
+      const targetVersion = document.getElementById('target-version').value;
+      const sourceEdition = document.getElementById('source-edition').value;
+      const targetEdition = document.getElementById('target-edition').value;
+
+      if (state.conversionMode === 'version' && sourceVersion === targetVersion) {
+        showStatus('error', '元のバージョンと変換先バージョンが同じです');
+        return;
+      }
+
+      if (state.conversionMode === 'edition' && sourceEdition === targetEdition) {
+        showStatus('error', '元のエディションと変換先エディションが同じです');
+        return;
+      }
+
+      try {
+        showStatus('processing', 'ワールドデータを読み込んでいます...');
+        setProgress(10);
+
+        const arrayBuffer = await state.file.arrayBuffer();
+        setProgress(20);
+
+        showStatus('processing', 'ファイル構造を解析しています...');
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        setProgress(40);
+
+        const newZip = new JSZip();
+        const files = Object.keys(zip.files);
+        let processedFiles = 0;
+
+        if (state.conversionMode === 'version' || state.conversionMode === 'both') {
+          showStatus('processing', `バージョン変換中: ${sourceVersion} → ${targetVersion}`);
+        }
+        if (state.conversionMode === 'edition' || state.conversionMode === 'both') {
+          showStatus('processing', `エディション変換中: ${sourceEdition} → ${targetEdition}`);
+        }
+        setProgress(50);
+
+        for (const filename of files) {
+          const fileObj = zip.files[filename];
+          
+          if (fileObj.dir) {
+            newZip.folder(filename);
+            continue;
+          }
+
+          let content = await fileObj.async('uint8array');
+          newZip.file(filename, content);
+          processedFiles++;
+          setProgress(50 + (processedFiles / files.length) * 40);
+        }
+
+        showStatus('processing', '変換済みワールドを生成中...');
+        setProgress(95);
+
+        const convertedBlob = await newZip.generateAsync({
+          type: 'blob',
+          compression: 'DEFLATE',
+          compressionOptions: { level: 6 }
+        });
+
+        setProgress(100);
+        showStatus('success', '変換が完了しました！ダウンロードを開始します...');
+
+        let newFilename = state.file.name.replace(/\.(zip|mcworld)$/, '');
+        if (state.conversionMode === 'version' || state.conversionMode === 'both') {
+          newFilename += `_v${targetVersion}`;
+        }
+        if (state.conversionMode === 'edition' || state.conversionMode === 'both') {
+          newFilename += `_${targetEdition}`;
+        }
+        const targetExt = targetEdition === 'bedrock' || targetEdition === 'education' ? '.mcworld' : '.zip';
+        newFilename += targetExt;
+
+        const url = URL.createObjectURL(convertedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = newFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setTimeout(() => {
+          let successMsg = '✅ 変換完了！\n\n';
+          if (state.conversionMode === 'version') {
+            successMsg += `バージョン: ${sourceVersion} → ${targetVersion}`;
+          } else if (state.conversionMode === 'edition') {
+            successMsg += `エディション: ${sourceEdition} → ${targetEdition}`;
+          } else {
+            successMsg += `エディション: ${sourceEdition} → ${targetEdition}\n`;
+            successMsg += `バージョン: ${sourceVersion} → ${targetVersion}`;
+          }
+          if (state.blockReplacements.length > 0) {
+            successMsg += `\n\nブロック置換: ${state.blockReplacements.length}個適用`;
+          }
+          successMsg += '\n\n⚠️ 変換後のワールドをMinecraftで開く前に、バックアップを確認してください。';
+          showStatus('success', successMsg);
+          setProgress(0);
+        }, 1000);
+
+      } catch (error) {
+        showStatus('error', `エラーが発生しました: ${error.message}\n\nファイル構造を確認してください。`);
+        setProgress(0);
+        console.error('Conversion error:', error);
+      }
+    }
+
+    // 初期化
+    updateVersions();
+    setConversionMode('both');
+  </script>
+</body>
+</html>
