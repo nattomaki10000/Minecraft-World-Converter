@@ -546,7 +546,7 @@
           if (state.blockReplacements.length > 0) {
             successMsg += `\n\nブロック置換: ${state.blockReplacements.length}個適用`;
           }
-          successMsg += '\n\n⚠️ 変換後のワールドをMinecraftで開く前に、バックアップを確認してください。統合版のワールドファイルの場合は拡張子を**mcworld**に変更してください';
+          successMsg += '\n\n⚠️ 変換後のワールドをMinecraftで開く前に、バックアップを確認してください。\n統合版のワールドファイルの場合は拡張子をmcworldに変更してください';
           showStatus('success', successMsg);
           setProgress(0);
         }, 1000);
