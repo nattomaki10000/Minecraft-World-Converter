@@ -534,7 +534,7 @@
         URL.revokeObjectURL(url);
 
         setTimeout(() => {
-          let successMsg = '✅ 変換完了！\n\n';
+          let successMsg = '変換完了！\n\n';
           if (state.conversionMode === 'version') {
             successMsg += `バージョン: ${sourceVersion} → ${targetVersion}`;
           } else if (state.conversionMode === 'edition') {
@@ -546,7 +546,7 @@
           if (state.blockReplacements.length > 0) {
             successMsg += `\n\nブロック置換: ${state.blockReplacements.length}個適用`;
           }
-          successMsg += '\n\n⚠️ 変換後のワールドをMinecraftで開く前に、バックアップを確認してください。';
+          successMsg += '\n\n⚠️ 変換後のワールドをMinecraftで開く前に、バックアップを確認してください。統合版のワールドファイルの場合は拡張子を**mcworld**に変更してください';
           showStatus('success', successMsg);
           setProgress(0);
         }, 1000);
